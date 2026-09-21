@@ -1,0 +1,38 @@
+
+# Python virtual environments & bytecode
+.venv/
+.pytest_tmp/
+.pytest_cache/
+env/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+
+# Checkpoints, models & heavy weights
+*.pt
+*.pth
+*.bin
+*.onnx
+*.safetensors
+*.ply
+weights/
+checkpoints/
+
+# Data directories (heavy images, raw datasets)
+data/raw/
+data/renders/
+data/outputs/
+experiments/results/
+!data/**/.gitkeep
+!experiments/**/.gitkeep
+
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
