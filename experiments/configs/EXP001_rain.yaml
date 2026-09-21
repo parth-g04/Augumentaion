@@ -1,0 +1,28 @@
+experiment_id: EXP001_rain
+description: "Feasibility experiment: 1 scene, 5 camera poses, Rain condition with structural conditioning"
+scene:
+  name: "surrogate_aerial_campus"
+  depth_type: "metric"
+  source: "surrogate_ground_truth"
+camera:
+  type: "orbit"
+  num_views: 5
+  altitude: 80.0
+  pitch: 45.0
+  radius: 75.0
+  width: 640
+  height: 480
+condition:
+  weather: "rain"
+  illumination: "day"
+  domain: "real_uav"
+  intensity: 0.8
+  seed: 42
+conditioning:
+  use_depth: true
+  use_edges: true
+  use_semantics: true
+quality_gate:
+  min_bbox_iou: 0.60
+  max_count_drift: 2
+  min_edge_similarity: 0.35

@@ -26,8 +26,13 @@ class QualityGate:
     def __init__(self, thresholds: Optional[QualityGateThresholds] = None):
         self.thresholds = thresholds or QualityGateThresholds()
 
-    def compute_edge_similarity(self, orig_rgb: np.ndarray, aug_rgb: np.ndarray) -> float:
-        """Computes structural edge intersection over union between two frames."""
+    def compute_edge_metrics(self, orig_rgb: np.ndarray, aug_rgb: np.ndarray) -> Tuple[float, float]:
+        """Computes structural edge metrics between two frames:
+        Returns:
+            (edge_iou, edge_preservation_recall)
+        where edge_preservation_recall measures what fraction of original structural
+        geometry survived the generative augmentation.
+        """
         def get_edges(img: np.ndarray) -> np.ndarray:
             gray = 0.299 * img[..., 0] + 0.587 * img[..., 1] + 0.114 * img[..., 2]
             gx = ndimage.sobel(gray, axis=1)
@@ -41,12 +46,14 @@ class QualityGate:
         e_orig = get_edges(orig_rgb)
         e_aug = get_edges(aug_rgb)
 
+        orig_count = e_orig.sum()
         inter = np.logical_and(e_orig, e_aug).sum()
         union = np.logical_or(e_orig, e_aug).sum()
 
-        if union == 0:
-            return 1.0
-        return float(inter / union)
+        edge_iou = float(inter / union) if union > 0 else 1.0
+        edge_recall = float(inter / orig_count) if orig_count > 0 else 1.0
+
+        return edge_iou, edge_recall
 
     def match_and_score_bboxes(
         self,
@@ -97,7 +104,7 @@ class QualityGate:
     ) -> QCReport:
         """Performs full quality gate check and issues a PASS / REJECT verdict."""
         mean_iou, count_drift = self.match_and_score_bboxes(orig_boxes, aug_boxes)
-        edge_sim = self.compute_edge_similarity(orig_rgb, aug_rgb)
+        edge_iou, edge_recall = self.compute_edge_metrics(orig_rgb, aug_rgb)
 
         mask_iou = None
         if orig_mask is not None and aug_mask is not None:
@@ -108,14 +115,15 @@ class QualityGate:
         metrics = MetricScores(
             mean_bbox_iou=round(mean_iou, 3),
             object_count_drift=count_drift,
-            edge_similarity=round(edge_sim, 3),
+            edge_similarity=round(edge_iou, 3),
+            edge_preservation_recall=round(edge_recall, 3),
             semantic_mask_iou=round(mask_iou, 3) if mask_iou is not None else None
         )
 
         passed_checks = {
             "bbox_consistency": mean_iou >= self.thresholds.min_bbox_iou,
             "count_drift_within_tolerance": count_drift <= self.thresholds.max_count_drift,
-            "structural_edge_preserved": edge_sim >= self.thresholds.min_edge_similarity
+            "structural_edge_preserved": edge_recall >= self.thresholds.min_edge_similarity
         }
         if mask_iou is not None:
             passed_checks["mask_iou_consistent"] = mask_iou >= self.thresholds.min_semantic_mask_iou

@@ -43,7 +43,8 @@ class MetricScores:
     """Quantitative metric scores evaluating structural and semantic consistency."""
     mean_bbox_iou: float
     object_count_drift: int
-    edge_similarity: float
+    edge_similarity: float           # Edge intersection over union
+    edge_preservation_recall: float  # Fraction of original structural edges preserved
     semantic_mask_iou: Optional[float] = None
     depth_correlation: Optional[float] = None
     fid_batch_score: Optional[float] = None  # Distributional proxy on batches only
@@ -67,6 +68,7 @@ class QCReport:
                 "mean_bbox_iou": self.metrics.mean_bbox_iou,
                 "object_count_drift": self.metrics.object_count_drift,
                 "edge_similarity": self.metrics.edge_similarity,
+                "edge_preservation_recall": self.metrics.edge_preservation_recall,
                 "semantic_mask_iou": self.metrics.semantic_mask_iou,
                 "depth_correlation": self.metrics.depth_correlation,
                 "fid_batch_score": self.metrics.fid_batch_score

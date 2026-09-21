@@ -1,0 +1,24 @@
+experiment_id: EXP005_ablation
+description: "Ablation study: Structural conditioning (depth + edges) vs Unconditioned generation"
+scene:
+  name: "surrogate_aerial_campus"
+  depth_type: "metric"
+  source: "surrogate_ground_truth"
+camera:
+  type: "orbit"
+  num_views: 5
+  altitude: 80.0
+  pitch: 45.0
+  radius: 75.0
+  width: 640
+  height: 480
+condition:
+  weather: "rain"
+  illumination: "day"
+  domain: "real_uav"
+  intensity: 0.85
+  seed: 42
+quality_gate:
+  min_bbox_iou: 0.60
+  max_count_drift: 2
+  min_edge_similarity: 0.35
