@@ -7,6 +7,8 @@ from .interfaces import (
     QCStatus
 )
 from .quality_gate import QualityGate, QualityGateThresholds
+from .dataset_exporter import DatasetExporter
+from .downstream_bench import BenchmarkResult, DownstreamBenchmark
 
 __all__ = [
     "BBox2D",
@@ -14,5 +16,8 @@ __all__ = [
     "QCReport",
     "QCStatus",
     "QualityGate",
-    "QualityGateThresholds"
+    "QualityGateThresholds",
+    "DatasetExporter",
+    "BenchmarkResult",
+    "DownstreamBenchmark"
 ]
