@@ -8,6 +8,7 @@ from .interfaces import (
 )
 from .trajectory import TrajectoryConfig, TrajectoryGenerator
 from .surrogate_renderer import SurrogateSceneRenderer
+from .ply_renderer import PlySceneRenderer
 
 __all__ = [
     "CameraPose",
@@ -16,5 +17,6 @@ __all__ = [
     "SceneRenderer",
     "TrajectoryConfig",
     "TrajectoryGenerator",
-    "SurrogateSceneRenderer"
+    "SurrogateSceneRenderer",
+    "PlySceneRenderer"
 ]
