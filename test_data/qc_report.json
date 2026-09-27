@@ -1,0 +1,25 @@
+{
+  "status": "REJECT",
+  "passed_checks": {
+    "bbox_consistency": true,
+    "count_drift_within_tolerance": true,
+    "structural_edge_preserved": false
+  },
+  "failure_reasons": [
+    "Edge similarity 0.001 below threshold 0.15"
+  ],
+  "metrics": {
+    "mean_bbox_iou": 1.0,
+    "object_count_drift": 0,
+    "edge_similarity": 0.001,
+    "edge_preservation_recall": 0.001,
+    "semantic_mask_iou": null,
+    "depth_correlation": null,
+    "fid_batch_score": null
+  },
+  "metadata": {
+    "original_path": "test_data/original_render.png",
+    "generated_path": "test_data/generated_night.png",
+    "had_box_annotations": false
+  }
+}
