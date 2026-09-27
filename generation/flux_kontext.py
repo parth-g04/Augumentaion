@@ -47,17 +47,27 @@ class FluxKontextGenerator(BaseGenerator):
     def _build_prompt(self, condition: ConditionConfig) -> str:
         """Builds a text editing instruction from the condition config.
 
-        Only 'clear -> rain' and 'clear -> fog' are targeted first,
-        per the phased plan. Other weather types can be extended later.
+        Combines weather and illumination into a single edit instruction.
         """
         weather_prompts = {
-            "rain": "make the scene rainy, wet ground, visible rain streaks in the air",
-            "fog": "make the scene foggy, reduced visibility, atmospheric haze",
-            "haze": "add atmospheric haze to the scene",
-            "clear": "keep the scene clear with no weather change",
+            "rain": "rainy, wet ground, visible rain streaks in the air",
+            "fog": "foggy, reduced visibility, atmospheric haze",
+            "haze": "hazy atmosphere",
+            "clear": "",
         }
-        return weather_prompts.get(condition.weather, "keep the scene clear")
+        illumination_prompts = {
+            "night": "at night, dark sky, artificial lighting visible",
+            "sunset": "during sunset, warm golden light",
+            "day": "",
+        }
 
+        weather_part = weather_prompts.get(condition.weather, "")
+        illum_part = illumination_prompts.get(condition.illumination, "")
+
+        parts = [p for p in [weather_part, illum_part] if p]
+        if not parts:
+            return "keep the scene as is with no changes"
+        return "make the scene " + " and ".join(parts)
     def generate(
         self,
         base_rgb: np.ndarray,
