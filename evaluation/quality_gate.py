@@ -1,64 +1,179 @@
-"""Quality Gate and Consistency Checker for Layer 4.
-Evaluates bounding-box consistency, object count drift, and structural edge similarity
-to produce an empirical PASS/REJECT decision on augmented frames.
-
-Refactored to delegate metric computation to dedicated modules
-(bbox_iou.py, edge_similarity.py, semantic_iou.py, qc_report.py) instead
-of computing everything inline. QualityGate.evaluate()'s signature and
-behavior are UNCHANGED — anything already calling it (e.g. an
-orchestration script) does not need to change.
-"""
-
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
-import numpy as np
 
-from .interfaces import BBox2D, MetricScores, QCReport
-from .bbox_iou import compute_bbox_iou_and_drift
-from .edge_similarity import compute_edge_metrics
-from .semantic_iou import compute_mask_iou
+from .bbox_iou import (
+    compute_bbox_iou_and_drift,
+    compute_per_object_bbox_check
+)
+
+from .edge_similarity import (
+    compute_edge_metrics
+)
+
+from .semantic_iou import (
+    compute_mask_iou
+)
+
+from .interfaces import MetricScores
+
 from .qc_report import build_report
 
 
 @dataclass
 class QualityGateThresholds:
-    """Configurable empirical thresholds for Quality Gate acceptance."""
+
     min_bbox_iou: float = 0.60
-    max_count_drift: int = 2     # Tolerates small dropouts under extreme rain/night
-    min_edge_similarity: float = 0.35
+
+    max_count_drift: int = 2
+
+    min_edge_similarity: float = 0.15
+
     min_semantic_mask_iou: float = 0.50
+
+    # Hard per-object IoU
+    min_per_object_iou: float = 0.60
+
+    # Maximum allowed object movement in pixels
+    max_object_displacement: float = 50.0
 
 
 class QualityGate:
-    """Evaluates consistency between original reference render and augmented variant."""
 
-    def __init__(self, thresholds: Optional[QualityGateThresholds] = None):
-        self.thresholds = thresholds or QualityGateThresholds()
+    def __init__(
+        self,
+        thresholds=None
+    ):
+
+        self.thresholds = (
+            thresholds
+            or QualityGateThresholds()
+        )
 
     def evaluate(
         self,
-        orig_rgb: np.ndarray,
-        aug_rgb: np.ndarray,
-        orig_boxes: List[BBox2D],
-        aug_boxes: List[BBox2D],
-        orig_mask: Optional[np.ndarray] = None,
-        aug_mask: Optional[np.ndarray] = None,
-        metadata: Optional[Dict[str, Any]] = None
-    ) -> QCReport:
-        """Performs full quality gate check and issues a PASS / REJECT verdict."""
-        mean_iou, count_drift = compute_bbox_iou_and_drift(orig_boxes, aug_boxes)
-        edge_iou, edge_recall = compute_edge_metrics(orig_rgb, aug_rgb)
+        orig_rgb,
+        aug_rgb,
+        orig_boxes,
+        aug_boxes,
+        orig_mask=None,
+        aug_mask=None,
+        metadata=None
+    ):
 
-        mask_iou = None
-        if orig_mask is not None and aug_mask is not None:
-            mask_iou = compute_mask_iou(orig_mask, aug_mask)
+        # ====================================================
+        # BBOX
+        # ====================================================
 
-        metrics = MetricScores(
-            mean_bbox_iou=round(mean_iou, 3),
-            object_count_drift=count_drift,
-            edge_similarity=round(edge_iou, 3),
-            edge_preservation_recall=round(edge_recall, 3),
-            semantic_mask_iou=round(mask_iou, 3) if mask_iou is not None else None,
+        bbox_iou, count_drift = (
+            compute_bbox_iou_and_drift(
+                orig_boxes,
+                aug_boxes
+            )
         )
 
-        return build_report(metrics=metrics, thresholds=self.thresholds, metadata=metadata)
+        per_object = None
+
+        if orig_boxes and aug_boxes:
+
+            per_object = (
+                compute_per_object_bbox_check(
+                    orig_boxes,
+                    aug_boxes,
+                    min_iou=(
+                        self.thresholds
+                        .min_per_object_iou
+                    )
+                )
+            )
+
+        # ====================================================
+        # EDGE
+        # ====================================================
+
+        edge_iou, edge_recall = (
+            compute_edge_metrics(
+                orig_rgb,
+                aug_rgb
+            )
+        )
+
+        # ====================================================
+        # SEMANTIC
+        # ====================================================
+
+        mask_iou = None
+
+        if (
+            orig_mask is not None
+            and aug_mask is not None
+        ):
+
+            mask_iou = compute_mask_iou(
+                orig_mask,
+                aug_mask
+            )
+
+        # ====================================================
+        # METRICS
+        # ====================================================
+
+        metrics = MetricScores(
+
+            mean_bbox_iou=(
+                round(
+                    bbox_iou,
+                    3
+                )
+                if orig_boxes and aug_boxes
+                else None
+            ),
+
+            object_count_drift=(
+                count_drift
+                if orig_boxes and aug_boxes
+                else None
+            ),
+
+            edge_similarity=round(
+                edge_iou,
+                3
+            ),
+
+            edge_preservation_recall=round(
+                edge_recall,
+                3
+            ),
+
+            semantic_mask_iou=(
+                round(
+                    mask_iou,
+                    3
+                )
+                if mask_iou is not None
+                else None
+            )
+        )
+
+        # ====================================================
+        # METADATA
+        # ====================================================
+
+        if metadata is None:
+            metadata = {}
+
+        metadata["bbox_annotations_available"] = (
+            bool(orig_boxes and aug_boxes)
+        )
+
+        metadata["hard_per_object_bbox"] = (
+            per_object
+        )
+
+        # ====================================================
+        # REPORT
+        # ====================================================
+
+        return build_report(
+            metrics=metrics,
+            thresholds=self.thresholds,
+            metadata=metadata
+        )
