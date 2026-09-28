@@ -1,42 +1,139 @@
-"""
-edge_similarity.py
-------------------
-Metric 3: Sobel-gradient structural edge metrics.
+from typing import Dict
 
-Extracted verbatim from QualityGate.compute_edge_metrics. Uses Sobel
-gradients (not Canny) thresholded at a fixed normalized magnitude, then
-compares edge maps two ways:
-  - edge_iou: symmetric overlap (penalizes both missing AND spurious edges)
-  - edge_preservation_recall: one-directional — what fraction of ORIGINAL
-    edge pixels survived, tolerant of new weather-texture edges being added
-"""
-
-from typing import Tuple
 import numpy as np
 from scipy import ndimage
 
 
-def get_edges(img: np.ndarray, threshold: float = 0.15) -> np.ndarray:
-    gray = 0.299 * img[..., 0] + 0.587 * img[..., 1] + 0.114 * img[..., 2]
-    gx = ndimage.sobel(gray, axis=1)
-    gy = ndimage.sobel(gray, axis=0)
-    grad = np.hypot(gx, gy)
-    max_g = np.max(grad)
-    if max_g > 1e-6:
-        grad /= max_g
-    return (grad > threshold).astype(bool)
+def _luminance(img: np.ndarray) -> np.ndarray:
+    img = img.astype(np.float64)
+
+    return (
+        0.299 * img[..., 0]
+        + 0.587 * img[..., 1]
+        + 0.114 * img[..., 2]
+    )
 
 
-def compute_edge_metrics(orig_rgb: np.ndarray, aug_rgb: np.ndarray) -> Tuple[float, float]:
-    """Returns (edge_iou, edge_preservation_recall)."""
-    e_orig = get_edges(orig_rgb)
-    e_aug = get_edges(aug_rgb)
+def _log_luminance_edges(
+    img: np.ndarray,
+    keep: float = 0.08,
+) -> np.ndarray:
 
-    orig_count = e_orig.sum()
-    inter = np.logical_and(e_orig, e_aug).sum()
-    union = np.logical_or(e_orig, e_aug).sum()
+    luminance = _luminance(img)
 
-    edge_iou = float(inter / union) if union > 0 else 1.0
-    edge_recall = float(inter / orig_count) if orig_count > 0 else 1.0
+    luminance = ndimage.gaussian_filter(
+        luminance,
+        sigma=1.0
+    )
 
-    return edge_iou, edge_recall
+    log_luminance = np.log1p(luminance)
+
+    gx = ndimage.sobel(
+        log_luminance,
+        axis=1
+    )
+
+    gy = ndimage.sobel(
+        log_luminance,
+        axis=0
+    )
+
+    gradient = np.hypot(gx, gy)
+
+    threshold = np.quantile(
+        gradient,
+        1.0 - keep
+    )
+
+    return gradient >= threshold
+
+
+def compute_edge_metrics_robust(
+    orig_rgb: np.ndarray,
+    aug_rgb: np.ndarray,
+    keep: float = 0.08,
+    tolerance: int = 3,
+    lit_threshold: float = 8.0,
+) -> Dict[str, float]:
+
+    if orig_rgb.shape[:2] != aug_rgb.shape[:2]:
+        raise ValueError(
+            f"Image size mismatch: "
+            f"{orig_rgb.shape[:2]} vs "
+            f"{aug_rgb.shape[:2]}"
+        )
+
+    original_edges = _log_luminance_edges(
+        orig_rgb,
+        keep
+    )
+
+    generated_edges = _log_luminance_edges(
+        aug_rgb,
+        keep
+    )
+
+    # Allow small spatial shifts.
+    generated_edges_tolerant = ndimage.maximum_filter(
+        generated_edges,
+        size=2 * tolerance + 1
+    )
+
+    original_count = int(original_edges.sum())
+
+    if original_count == 0:
+        recall = 1.0
+    else:
+        overlap = np.logical_and(
+            original_edges,
+            generated_edges_tolerant
+        ).sum()
+
+        recall = float(overlap / original_count)
+
+    chance_level = float(
+        generated_edges_tolerant.mean()
+    )
+
+    if chance_level < 1.0:
+        corrected = (
+            recall - chance_level
+        ) / (
+            1.0 - chance_level
+        )
+    else:
+        corrected = 0.0
+
+    corrected = float(
+        np.clip(corrected, 0.0, 1.0)
+    )
+
+    smooth_luminance = ndimage.gaussian_filter(
+        _luminance(aug_rgb),
+        sigma=3.0
+    )
+
+    lit_fraction = float(
+        (
+            smooth_luminance >= lit_threshold
+        ).mean()
+    )
+
+    return {
+        "edge_recall_tolerant": round(
+            recall,
+            4
+        ),
+        "chance_level": round(
+            chance_level,
+            4
+        ),
+        "edge_recall_chance_corrected": round(
+            corrected,
+            4
+        ),
+        "lit_fraction": round(
+            lit_fraction,
+            4
+        ),
+    }

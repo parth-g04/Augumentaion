@@ -1,25 +1,62 @@
 {
-  "status": "REJECT",
-  "passed_checks": {
-    "bbox_consistency": true,
-    "count_drift_within_tolerance": true,
-    "structural_edge_preserved": false
+  "status": "WARNING",
+  "images": {
+    "original": "C:\\Users\\abhin\\OneDrive\\kali\\OneDrive\\Desktop\\IIT BOMBAY PROJECT_LAYER4\\Augumentaion\\test_data/original_render.png",
+    "generated": "C:\\Users\\abhin\\OneDrive\\kali\\OneDrive\\Desktop\\IIT BOMBAY PROJECT_LAYER4\\Augumentaion\\test_data/generated.png"
   },
-  "failure_reasons": [
-    "Edge similarity 0.001 below threshold 0.15"
-  ],
+  "image_info": {
+    "resized": true,
+    "original_size": [
+      1600,
+      1141
+    ],
+    "generated_size": [
+      1200,
+      864
+    ],
+    "aspect_ratio_original": 1.4023,
+    "aspect_ratio_generated": 1.3889,
+    "aspect_ratio_difference": 0.0134
+  },
   "metrics": {
-    "mean_bbox_iou": 1.0,
-    "object_count_drift": 0,
-    "edge_similarity": 0.001,
-    "edge_preservation_recall": 0.001,
-    "semantic_mask_iou": null,
-    "depth_correlation": null,
-    "fid_batch_score": null
+    "structural_edge_score": 0.3678,
+    "edge_recall_tolerant": 0.4649,
+    "edge_chance_level": 0.1536,
+    "lit_fraction": 0.9958,
+    "bbox_iou": null,
+    "object_count_drift": null,
+    "semantic_iou": null,
+    "fid": null
   },
-  "metadata": {
-    "original_path": "test_data/original_render.png",
-    "generated_path": "test_data/generated_night.png",
-    "had_box_annotations": false
+  "thresholds": {
+    "structural_edge_score": 0.15,
+    "per_object_iou": 0.6,
+    "object_count_drift": 2,
+    "semantic_iou": "TBD",
+    "fid": 15.0
+  },
+  "checks": {
+    "image_size": "WARNING",
+    "structural_edges": "PASS",
+    "hard_per_object_bbox": null,
+    "object_count": null,
+    "semantic_iou": "N/E",
+    "fid": "N/E"
+  },
+  "bbox_details": {
+    "status": "NOT_EVALUATED",
+    "reason": "Bounding-box annotations were not provided."
+  },
+  "fid_details": {
+    "evaluated": false,
+    "score": null,
+    "reason": "Not evaluated \u2014 dataset folders were not provided."
+  },
+  "decision_reasons": {
+    "structural_edges": "0.3678 >= 0.1500",
+    "bbox": "Not evaluated \u2014 bounding-box annotations were not provided.",
+    "object_count": "Not evaluated \u2014 bounding-box annotations were not provided.",
+    "semantic_iou": "Not evaluated \u2014 segmentation masks were not provided.",
+    "fid": "Not evaluated \u2014 dataset folders were not provided."
   }
 }
