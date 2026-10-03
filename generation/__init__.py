@@ -9,6 +9,7 @@ from .interfaces import (
     WeatherType
 )
 from .generator_adapter import GenerativeDomainAdapter
+from .flux_kontext import FluxKontextGenerator
 
 __all__ = [
     "AugmentedOutput",
@@ -17,5 +18,6 @@ __all__ = [
     "DomainType",
     "IlluminationType",
     "WeatherType",
-    "GenerativeDomainAdapter"
+    "GenerativeDomainAdapter",
+    "FluxKontextGenerator"
 ]
