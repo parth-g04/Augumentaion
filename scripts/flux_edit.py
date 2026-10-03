@@ -1,4 +1,4 @@
-import sys, json, time, argparse
+import sys, json, argparse
 from pathlib import Path
 import numpy as np
 import torch
@@ -7,6 +7,7 @@ from PIL import Image
 root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(root))
 from generation.flux_kontext import FluxKontextGenerator
+from generation.interfaces import ConditionConfig
 
 PRESETS = {
     "rain": "make the scene rainy, wet ground, visible rain streaks in the air",
@@ -35,24 +36,22 @@ src = Image.open(a.inp).convert("RGB")
 w0, h0 = src.size
 s = 1024 / max(w0, h0)
 w, h = int(round(w0 * s / 16)) * 16, int(round(h0 * s / 16)) * 16
-inp = src.resize((w, h), Image.LANCZOS)
+base_rgb = np.array(src.resize((w, h), Image.LANCZOS))
 
 gen = FluxKontextGenerator()
-gen._load_pipeline()
-g = torch.Generator(device="cuda").manual_seed(a.seed)
+condition = ConditionConfig(seed=a.seed)
 
-t0 = time.time()
-res = gen.pipe(image=inp, prompt=prompt, height=h, width=w, guidance_scale=a.guidance, generator=g)
-ms = (time.time() - t0) * 1000
-out = res.images[0]
-out.save(a.out)
+out = gen.generate(base_rgb, condition, prompt_override=prompt, guidance_scale=a.guidance)
 
-meta = {
-    "model_id": gen.model_id, "seed": a.seed, "prompt": prompt, "guidance_scale": a.guidance,
-    "input_image": a.inp, "input_size": [w0, h0], "output_size": list(out.size),
-    "inference_time_ms": round(ms, 1),
-    "vram_allocated_mb": round(torch.cuda.memory_allocated() / 2**20, 1),
-    "gpu": torch.cuda.get_device_name(0), "torch": torch.__version__,
-}
+Image.fromarray(out.image).save(a.out)
+
+meta = dict(out.metadata)
+meta["input_image"] = a.inp
+meta["input_size"] = [w0, h0]
+meta["output_size"] = [w, h]
+meta["inference_time_ms"] = out.inference_time_ms
+meta["vram_allocated_mb"] = out.vram_allocated_mb
+meta["torch"] = torch.__version__
+
 json.dump(meta, open(a.out + ".json", "w"), indent=2)
 print(meta)

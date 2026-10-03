@@ -68,13 +68,16 @@ class FluxKontextGenerator(BaseGenerator):
         if not parts:
             return "keep the scene as is with no changes"
         return "make the scene " + " and ".join(parts)
+
     def generate(
         self,
         base_rgb: np.ndarray,
         condition: ConditionConfig,
         depth: Optional[np.ndarray] = None,
         semantic_mask: Optional[np.ndarray] = None,
-        edges: Optional[np.ndarray] = None
+        edges: Optional[np.ndarray] = None,
+        prompt_override: Optional[str] = None,
+        guidance_scale: Optional[float] = None,
     ) -> AugmentedOutput:
         """Applies FLUX.1 Kontext generative augmentation to a base observation.
 
@@ -83,6 +86,15 @@ class FluxKontextGenerator(BaseGenerator):
         backend (FLUX.1 Kontext operates on image + text instruction
         only). Structural conditioning via these inputs is handled by
         the separate ControlledDiffusionGenerator backend.
+
+        prompt_override: if given, used verbatim instead of the prompt
+        built from condition.weather/condition.illumination. Lets callers
+        (e.g. scripts/flux_edit.py) request a custom edit instruction
+        while still going through this single, logged code path.
+
+        guidance_scale: if given, passed through to the pipeline;
+        otherwise the pipeline's own default is used (unchanged from
+        prior behavior).
         """
         self._load_pipeline()
 
@@ -90,14 +102,14 @@ class FluxKontextGenerator(BaseGenerator):
         start_t = time.perf_counter()
 
         input_image = Image.fromarray(base_rgb)
-        prompt = self._build_prompt(condition)
+        prompt = prompt_override if prompt_override else self._build_prompt(condition)
         generator = torch.Generator("cuda").manual_seed(condition.seed)
 
-        result = self.pipe(
-            image=input_image,
-            prompt=prompt,
-            generator=generator,
-        )
+        pipe_kwargs = {"image": input_image, "prompt": prompt, "generator": generator}
+        if guidance_scale is not None:
+            pipe_kwargs["guidance_scale"] = guidance_scale
+
+        result = self.pipe(**pipe_kwargs)
         output_image = np.array(result.images[0])
 
         latency_ms = (time.perf_counter() - start_t) * 1000.0
@@ -112,6 +124,7 @@ class FluxKontextGenerator(BaseGenerator):
                 "model_id": self.model_id,
                 "seed": condition.seed,
                 "prompt": prompt,
+                "guidance_scale": guidance_scale,
                 "resolution": f"{output_image.shape[1]}x{output_image.shape[0]}",
                 "gpu": torch.cuda.get_device_name(0),
             }
