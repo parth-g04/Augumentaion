@@ -92,7 +92,7 @@ class PlySceneRenderer(SceneRenderer):
         if not self.backend.is_cuda_available:
             raise RuntimeError(
                 f"3DGS rendering failed: {self.backend.status_message} "
-                "Real 3DGS rendering requires an NVIDIA GPU with CUDA 11.8 and diff-gaussian-rasterization. "
+                "Real 3DGS rendering requires an NVIDIA GPU with CUDA 12.8 and diff-gaussian-rasterization. "
                 "No fake images are generated in accordance with research integrity rules."
             )
 

@@ -85,8 +85,17 @@ class PoseRenderBackend:
             )
 
         import torch
+        import utils  # type: ignore
+        import camera as camera_mod  # type: ignore
         from camera import Camera  # type: ignore
         from render import Renderer  # type: ignore
+
+        # Upstream default far plane is 100 units, which clips/blacks out large
+        # real-world scenes. Overridden to 1000 units, matching what was
+        # validated on real scenes (overhead_bridge, 2_city) during development.
+        camera_mod.get_projection_matrix = lambda fx, fy: utils.get_projection_matrix(
+            fx, fy, znear=0.01, zfar=1000.0
+        )
 
         camera = Camera()
         camera.load(cam_info)
@@ -104,7 +113,8 @@ class PoseRenderBackend:
             "upstream_image_width": camera.image_width,
             "upstream_image_height": camera.image_height,
             "tensor_shape": list(rendered_tensor.shape),
-            "device": str(rendered_tensor.device)
+            "device": str(rendered_tensor.device),
+            "projection_far_plane_override": 1000.0,
         }
 
         return rgb_uint8, telemetry
